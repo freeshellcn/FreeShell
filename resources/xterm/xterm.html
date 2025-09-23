@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="xterm.css" />
+  <script src="xterm.js"></script>
+  <script src="addon-fit.js"></script>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <style>
+    /*@font-face {*/
+    /*  font-family: "FiraCode-Regular";*/
+    /*  src: url("../fonts/FiraCode-Regular.woff2") format("woff2");*/
+    /*  font-weight: normal;*/
+    /*  font-style: normal;*/
+    /*}*/
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+    #terminal {
+      width: 100%;
+      height: 100%;
+      font-family: monospace
+    }
+
+     /* 右键菜单基础样式 */
+    .context-menu {
+      position: absolute;
+      background: #1e1e1e;       /* 终端背景黑色 */
+      border: 1px solid #333;    /* 终端边框风格 */
+      font-family: monospace;    /* 等宽字体 */
+      font-size: 14px;
+      color: #ccc;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      z-index: 9999;
+      display: none;
+    }
+
+    .context-menu-item {
+      padding: 6px 16px;
+      cursor: pointer;
+    }
+
+    .context-menu-item:hover {
+      background: #333;
+      color: #fff;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="terminal" ></div>
+  <script>
+    const term = new Terminal(
+            {
+              convertEol: true, // 把 \n 自动补成 \r\n
+              scrollback: 10000,
+              cursorBlink: true,
+              fontFamily: "monospace",
+              disableStdin: false,
+              allowProposedApi: true,
+              fontSize: 14,
+              theme: {
+                background: "#000000",
+                foreground: "#ffffff"
+              }
+            }
+    );
+    term.focus();
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+    function write_error_data(data){
+        term.writeln('\x1b[1;31m✖ SSH 连接失败：' + data + '\x1b[0m');
+    }
+
+    new QWebChannel(qt.webChannelTransport, function(channel) {
+        window.backend = channel.objects.backend;
+        window.clipboard = channel.objects.clipboard;
+        window.xtermConfig = channel.objects.xtermConfig;
+        term.onData(data => backend.send_ssh(data));
+        term.onResize(function(size) {
+          // 当窗口变化的时候,通知后端也要调整模拟窗口的大小
+          backend.resize_pty(size.cols, size.rows);
+        });
+        backend.receive_ssh.connect(data =>  term.write(data));
+        backend.receive_error_data.connect(data => write_error_data(data));
+    });
+      // 浏览器窗口大小变化时自动调整,仅前端调整
+    window.addEventListener("resize", () => {
+        fitAddon.fit();
+    });
+    // 当页面加载完成,通知后端,当前窗口的大小
+    window.onload = function() {
+       setTimeout(() => {
+          backend.resize_pty(term.cols, term.rows)
+      }, 1000);
+      reset_focus();
+    };
+    // 通过底部按钮输入内容,窗口获得光标
+    function reset_focus(){
+      term.focus();
+    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.innerHTML = `
+      <div id="copy_data" class="context-menu-item" data-action="copy">复制 Ctrl+Ins</div>
+      <div id="paste_data" class="context-menu-item" data-action="paste">粘贴 Shift+Ins</div>
+      <div id="clear_data" class="context-menu-item" data-action="clear">清屏</div>
+    `;
+    document.body.appendChild(menu);
+    // 绑定右键事件
+    document.getElementById('terminal').addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      // 鼠标右击粘贴功能是否开启,如果开启就直接粘贴内容, 否则就弹出菜单
+       xtermConfig.get_mouse_right_paste().then(text => {
+          if (text==='开启') {
+            clipboard.read_text().then(text => {
+              backend.send_ssh(text)
+            });
+          }else {
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+            menu.style.display = 'block';
+          }
+        });
+
+    });
+
+    // 点击菜单项
+    menu.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('context-menu-item')) {
+        const action = e.target.dataset.action;
+        // 复制
+        if (action === 'copy') {
+          const selection = term.getSelection();
+          if (selection) {
+            clipboard.write_text(selection)
+          }
+        // 粘贴
+        } else if (action === 'paste') {
+          clipboard.read_text().then(text => {
+            backend.send_ssh(text)
+          });
+        // 清屏
+        } else if (action === 'clear') {
+          term.clear();
+        }
+        menu.style.display = 'none';
+        reset_focus()
+      }
+    });
+
+    // 点击其他地方关闭菜单
+    document.addEventListener('click', () => {
+      menu.style.display = 'none';
+    });
+
+    // 监听选择事件
+    term.onSelectionChange(() => {
+      const selection = term.getSelection();
+      if (selection) {
+        // 鼠标左击选中功能是否开启,如果开启就把选中的内容放入剪贴板
+        xtermConfig.get_mouse_left_select().then(text => {
+          if (text==='开启') {
+            // 使用 Clipboard API 写入剪贴板
+            clipboard.write_text(selection)
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+  <title>QWebChannel 富文本编辑器（带代码块）</title>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <style>
+    /*@font-face {*/
+    /*  font-family: "JetBrains Mono";*/
+    /*  src: url("../fonts/JetBrainsMono-Regular.woff2") format("woff2");*/
+    /*  font-weight: normal;*/
+    /*  font-style: normal;*/
+    /*}*/
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: sans-serif;
+      overflow: auto ;
+    }
+     /* 工具栏粘性定位，永远粘在 .editor-wrapper 顶部 */
+    #toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;             /* 保证在上层 */
+      background: #f5f5f5;     /* 遮盖滚动内容时不透出 */
+      padding: 0.5em;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3em;
+      align-items: center;
+    }
+
+    #toolbar button,
+    #toolbar select,
+    #toolbar input[type="color"],
+    #toolbar input[list] {
+      cursor: pointer;
+      padding: 0.3em 0.6em;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 2px;
+    }
+    #toolbar button:hover { background: #e6e6e6; }
+    #indexContent {
+          box-sizing: border-box;
+          /* 至少和剩余区域等高 */
+          min-height: calc(100% - 3em);
+          /* 不要 height，也不要 overflow:auto，否则它自己滚 */
+          border: 1px solid #ccc;
+          outline: none;
+          padding: 1em;
+    }
+    pre {
+      background: #f0f0f0;
+      padding: 0.6em;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    pre code {
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    #notification {
+      position: fixed;
+      top: 15%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      padding: 0.8em 1.2em;
+      border-radius: 4px;
+      font-size: 0.95em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 9999;
+      /*font-family: "JetBrains Mono", monospace;*/
+    }
+    #notification.show { opacity: 1; }
+    #notification.success { background: rgba(46,125,50,0.85); }
+    #notification.error   { background: rgba(183,28,28,0.85); }
+  </style>
+</head>
+<body>
+
+<div id="notification"></div>
+
+<div id="toolbar">
+  <!-- 基础样式 -->
+  <button onclick="exec('bold')"      title="加粗 (Ctrl+B)">B</button>
+  <button onclick="exec('italic')"    title="斜体 (Ctrl+I)">I</button>
+  <button onclick="exec('underline')" title="下划线">U</button>
+  <button onclick="exec('strikeThrough')" title="删除线">S</button>
+
+  <!-- 列表 -->
+  <button onclick="exec('insertOrderedList')"   title="有序列表">①</button>
+  <button onclick="exec('insertUnorderedList')" title="无序列表">•</button>
+
+  <!-- 文本对齐 -->
+  <button onclick="exec('justifyLeft')"   title="左对齐">↤</button>
+  <button onclick="exec('justifyCenter')" title="居中">↔</button>
+  <button onclick="exec('justifyRight')"  title="右对齐">↦</button>
+  <button onclick="exec('justifyFull')"   title="两端对齐">≡</button>
+
+  <!-- 标题 & 引用 -->
+  <button onclick="exec('formatBlock','<h1>')"         title="H1">H1</button>
+  <button onclick="exec('formatBlock','<h2>')"         title="H2">H2</button>
+  <button onclick="exec('formatBlock','<h3>')"         title="H3">H3</button>
+  <button onclick="exec('formatBlock','<blockquote>')" title="引用块">❝</button>
+
+  <!-- 颜色 -->
+  <input type="color" onchange="exec('foreColor', this.value)" title="文字颜色">
+  <input type="color" onchange="exec('hiliteColor', this.value)" title="背景颜色">
+
+  <!-- 代码块 -->
+  <button onclick="insertCodeBlock()" title="插入代码块">{ }</button>
+
+  <!-- 撤销/重做 -->
+  <button onclick="exec('undo')" title="撤销 (Ctrl+Z)">↺</button>
+  <button onclick="exec('redo')" title="重做 (Ctrl+Y)">↻</button>
+</div>
+
+<div id="indexContent" contenteditable="true"></div>
+<script>
+
+    // 通用 execCommand
+    function exec(cmd, value = null) {
+        document.execCommand(cmd, false, value);
+        indexContent.focus();
+    }
+    // 是否在 <code> 内
+    function isInCodeBlock() {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return false;
+        let node = sel.anchorNode;
+        while (node && node.id !== 'indexContent') {
+          if (node.nodeName === 'CODE') return true;
+          node = node.parentNode;
+        }
+         return false;
+    }
+    // 插入代码块 代码是通过AI写的, 我也不是很明白, 暂时先放着,以后再优化
+    function insertCodeBlock() {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        const text = sel.toString();
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+        code.textContent = text || '在此输入代码…';
+        pre.appendChild(code);
+        range.deleteContents();
+        range.insertNode(pre);
+        // 在代码块后插入一个空行，定位光标到空行
+        const brWrap = document.createElement('div');
+        brWrap.innerHTML = '<br>';
+        pre.parentNode.insertBefore(brWrap, pre.nextSibling);
+        sel.removeAllRanges();
+        const newRange = document.createRange();
+        newRange.setStart(brWrap, 0);
+        sel.addRange(newRange);
+        indexContent.focus();
+    }
+
+  // QWebChannel 加载
+  window.onload = function() {
+    new QWebChannel(qt.webChannelTransport, function(channel) {
+      // 正文内容的文本框
+      const editor = document.getElementById("indexContent");
+      // 保存代码 提示成功和失败
+      const notification = document.getElementById("notification");
+      // 代码块功能 在代码块内按 Enter 插入换行, 不太好用,尽量别用
+      editor.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && isInCodeBlock()) {
+          event.preventDefault();
+          // 插入真实的换行符
+          document.execCommand('insertHTML', false, '\n');
+        }
+      });
+      // 绑定pyside,与pyside交互
+      window.backend = channel.objects.backend;
+      // 添加监听实际, Ctrl + S  保存内容
+      window.addEventListener("keydown", event => {
+        if ((event.ctrlKey || event.metaKey) && (event.key === "s" || event.key === "S")) {
+          event.preventDefault();
+          // pyside中的保存数据slot
+          backend.save_base_data(editor.innerHTML);
+        }
+      });
+      // 保存完数据以后, pyside返回的结果,保存成功还是失败.页面做提示框用
+      backend.save_base_data_result.connect(success => {
+        notification.textContent = success ? "保存成功" : "保存失败";
+        notification.className = success ? 'success show' : 'error show';
+        setTimeout(() => notification.classList.remove('show'), 1200);
+      });
+      // 接收到后端传来的数据,写入到正文内容中
+      backend.receive_data.connect(html => {
+        editor.innerHTML = html;
+      });
+      // 页面第一次打开的时候,通过后天要读取新数据, 后天读取到新数据了,传给receive_data,最好不要直接返回数据
+      backend.load_data();
+    });
+  };
+</script>
+
+</body>
+</html>
