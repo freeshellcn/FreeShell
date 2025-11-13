@@ -114,7 +114,7 @@ class MainWindow(QMainWindow):
         self.view_menu_index.triggered.connect(self.show_hide_index)  # 首页显示状态
         view_menu.addAction(self.view_menu_index)
 
-        self.view_menu_button = QAction("按钮栏", self, checkable=True)
+        self.view_menu_button = QAction("按钮命令", self, checkable=True)
         self.view_menu_button.setChecked(FreeShellConfig.get('view_menu_button_chk'))
         self.view_menu_button.triggered.connect(self.show_hide_button)
         view_menu.addAction(self.view_menu_button)

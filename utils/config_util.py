@@ -6,7 +6,7 @@ from models.sqlite_db import SQLiteDB
 
 class FreeShellConfig:
     SYSTEM_TYPE=None
-    SOFT_VERSION="0.1.0"
+    SOFT_VERSION="0.1.1"
     if sys.platform.startswith("win"):
         SYSTEM_TYPE="windows"
 

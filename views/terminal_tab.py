@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QUrl,Qt
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy,QStackedLayout
 
 from views.ssh_manager import SSHManager
 from utils.copy_util import ClipboardBridge
@@ -16,6 +16,16 @@ class TerminalTab(QWidget):
         self.connect_info = connect_info
         self.layout = QVBoxLayout(self)
         self.view = QWebEngineView()
+        # # 下面的4行代码能缓解部分闪屏行为
+        # # 禁止 Qt 强制填充白色
+        # self.view.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, False)
+        # # Qt 允许背景透明
+        # self.view.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        # # 通过 CSS 将 WebView 的背景设置为透明。WebView 显示的内容就是终端字符，底下可以看到 Qt 背景或其他 widget。
+        # self.view.setStyleSheet("background: black;")
+        # self.view.page().setBackgroundColor(Qt.GlobalColor.black)
+
+
         self.view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.manager = SSHManager(self.connect_info)
         self.channel = QWebChannel()

@@ -42,7 +42,7 @@ class AboutDialog(QDialog):
             soft = UseThirdSoftDialog()
             soft.exec()
         elif link == "freeshell":
-            QMessageBox.information(self, "官网地址", "暂未开通")
+            webbrowser.open("https://www.freeshell.cn")
         elif link == "github":
             webbrowser.open("https://github.com/freeshellcn/FreeShell")
         elif link == "gitee":

@@ -5,7 +5,7 @@
 import os
 from PySide6.QtCore import QUrl
 from PySide6.QtWebChannel import QWebChannel
-from PySide6.QtWebEngineWidgets import QWebEngineView
+from views.QWebEngineViewOverride import QWebEngineViewOverride
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout
 )
@@ -15,7 +15,7 @@ class IndexTab(QWidget):
     def __init__(self):
         super().__init__()
         self.layout = QVBoxLayout(self)
-        self.view = QWebEngineView()
+        self.view = QWebEngineViewOverride()
         self.handler = Handlers()
         self.channel = QWebChannel()
         self.channel.registerObject("backend", self.handler)

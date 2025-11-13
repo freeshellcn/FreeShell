@@ -1,0 +1,8 @@
+@font-face {
+  font-family: 'MesloLGS NF';
+  src: url('MesloLGS NF Regular.ttf') format('truetype');
+}
+
+.xterm .xterm-rows {
+  font-family: 'MesloLGS NF', monospace;
+}

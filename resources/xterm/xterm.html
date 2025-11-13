@@ -4,6 +4,7 @@
   <link rel="stylesheet" href="xterm.css" />
   <script src="xterm.js"></script>
   <script src="addon-fit.js"></script>
+  <link rel="stylesheet" href="meslo.css">
   <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
   <style>
     /*@font-face {*/
@@ -48,7 +49,16 @@
       background: #333;
       color: #fff;
     }
-
+    body, html {
+      margin: 0;
+      background: black;       /* 黑色背景替代白色 */
+      color: #0f0;
+    }
+    #term-container {
+      width: 100%;
+      height: 100%;
+      background: black;       /* 确保终端区域背景黑色 */
+    }
   </style>
 </head>
 <body>
@@ -59,7 +69,7 @@
               convertEol: true, // 把 \n 自动补成 \r\n
               scrollback: 10000,
               cursorBlink: true,
-              fontFamily: "monospace",
+              fontFamily: "monospace,MesloLGS NF",
               disableStdin: false,
               allowProposedApi: true,
               fontSize: 14,
@@ -174,6 +184,39 @@
         });
       }
     });
+
+    // 重写复制粘贴快捷键, 不重写有的时候从外面复制的内容,快捷键粘贴不进来
+    document.addEventListener('keydown', function(event) {
+      // 检查Ctrl+Shift+C
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'c') {
+        // 可以根据需要阻止默认行为
+        event.preventDefault();
+        clipboard.write_text(term.getSelection())
+      }
+
+      // 检查Ctrl+Shift+V
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'v') {
+        event.preventDefault();
+        clipboard.read_text().then(text => {
+              backend.send_ssh(text)
+        });
+      }
+
+      // 检查Ctrl+Ins
+      if (event.ctrlKey && event.key === 'Insert') {
+        event.preventDefault();
+        clipboard.write_text(term.getSelection())
+      }
+
+      // 检查Shift+Ins
+      if (event.shiftKey && event.key === 'Insert') {
+        event.preventDefault();
+        clipboard.read_text().then(text => {
+              backend.send_ssh(text)
+        });
+      }
+  });
+
   </script>
 </body>
 </html>

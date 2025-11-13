@@ -14,14 +14,14 @@ VSVersionInfo(
       StringTable(
         '080404B0',
         [
-          StringStruct('CompanyName', ''),
+          StringStruct('CompanyName', 'FreeShell'),
           StringStruct('FileDescription', 'FreeShell'),
           StringStruct('FileVersion', '0.0.0'),
           StringStruct('InternalName', 'FreeShell'),
           StringStruct('LegalCopyright', '©freeshell.cn'),
           StringStruct('OriginalFilename', 'FreeShell.exe'),
           StringStruct('ProductName', 'FreeShell'),
-          StringStruct('ProductVersion', '0.0.1')
+          StringStruct('ProductVersion', '0.1.1')
         ]
       )
     ]),
